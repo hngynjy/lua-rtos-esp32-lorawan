@@ -15,7 +15,7 @@
 #include "luartos.h"
 #include "sdkconfig.h"
 
-#if CONFIG_LUA_RTOS_LORA_DEVICE_TYPE_NODE
+#if CONFIG_LUA_RTOS_LORA_DEVICE_TYPE_NODE && CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
 
 #ifdef __cplusplus
 extern "C"{

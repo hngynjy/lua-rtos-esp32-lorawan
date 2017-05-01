@@ -40,7 +40,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include <lora/node/lmic/lora.h>
+#include <lora/node/lora.h>
 
 #include <drivers/uart.h>
 

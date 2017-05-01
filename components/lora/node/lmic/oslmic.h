@@ -15,8 +15,9 @@
 
 #include "sdkconfig.h"
 
-#if CONFIG_LUA_RTOS_LORA_DEVICE_TYPE_NODE
+#if CONFIG_LUA_RTOS_LORA_DEVICE_TYPE_NODE && CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
 
+#include "lora.h"
 #include <sys/driver.h>
 
 // Dependencies required for the LoRa MAC in C to run.
@@ -28,21 +29,6 @@
 #ifdef __cplusplus
 extern "C"{
 #endif
-
-//================================================================================
-//================================================================================
-// Target platform as C library
-typedef uint8_t            bit_t;
-typedef uint8_t            u1_t;
-typedef int8_t             s1_t;
-typedef uint16_t           u2_t;
-typedef int16_t            s2_t;
-typedef uint32_t           u4_t;
-typedef int32_t            s4_t;
-typedef uint64_t           u8_t;
-typedef int64_t            s8_t;
-typedef unsigned int       uint;
-typedef const char* str_t;
 
 #include <string.h>
 #include "hal.h"

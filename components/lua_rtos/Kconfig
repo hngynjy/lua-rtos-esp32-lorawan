@@ -306,6 +306,17 @@ menu "Lua RTOS"
 			    range 1000000 10000000
 			    default 8000000		    		
 		    		
+			choice LUA_RTOS_LORA_NODE_STACK_TYPE
+				prompt "Stack"
+				default LUA_RTOS_LORA_NODE_LMIC_STACK
+			
+				config LUA_RTOS_LORA_NODE_LMIC_STACK
+					bool "LMIC"
+				
+				config LUA_RTOS_LORA_NODE_SEMTECH_STACK
+					bool "Semtech"
+			endchoice
+		    
 			config LUA_RTOS_LORA_NODE_DEBUG
 		  		bool "Enable machine-state debug"
   		    	depends on LUA_RTOS_LORA_DEVICE_TYPE_NODE		  	

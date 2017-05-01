@@ -1,5 +1,5 @@
 /*
- * Lua RTOS, Lora WAN driver for LMIC
+ * Lua RTOS, Lora WAN driver
  *
  * Copyright (C) 2015 - 2017
  * IBEROXARXA SERVICIOS INTEGRALES, S.L.
@@ -53,7 +53,16 @@
 #include <sys/driver.h>
 #include <sys/status.h>
 
+#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
 #include "lmic.h"
+#endif
+
+#if CONFIG_LUA_RTOS_LORA_NODE_SEMTECH_STACK
+#include "board.h"
+#include "LoRaMac.h"
+//#include "Region.h"
+#endif
+
 #include "common.h"
 
 // Driver message errors
@@ -78,13 +87,15 @@ DRIVER_REGISTER_ERROR(LORA, lora, InvalidBand, "invalid band for your location",
 
 extern uint8_t flash_unique_id[8];
 
+#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
 // LMIC job for start LMIC stack
 static osjob_t initjob;
+#endif
 
 // Mutext for lora 
 static struct mtx lora_mtx;
 
-// Event group handler for sync LMIC events with driver functions
+// Event group handler for sync LoRa events with driver functions
 static EventGroupHandle_t loraEvent;
 
 // Data needed for OTAA
@@ -111,6 +122,7 @@ static u1_t setup = 0;
 // Callback function to call when data is received
 static lora_rx *lora_rx_callback = NULL;
 
+#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
 // Table for translate numeric datarates to LMIC definitions
 #if CONFIG_LUA_RTOS_LORA_NODE_BAND_EU868
 static const u1_t data_rates[] = {
@@ -125,7 +137,7 @@ static const u1_t data_rates[] = {
 	DR_SF12CR, DR_SF11CR, DR_SF10CR, DR_SF9CR, DR_SF8CR, DR_SF7CR, DR_NONE,
 	DR_NONE
 };
-
+#endif
 #endif
 
 // Current datarate set by user
@@ -134,6 +146,7 @@ static u1_t current_dr = 0;
 // ADR active?
 static u1_t adr = 0;
 
+#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
 // LMIC event handler
 void onEvent (ev_t ev) {
     switch(ev) {
@@ -257,6 +270,7 @@ static void lora_init(osjob_t *j) {
 
     xEventGroupSetBits(loraEvent, evLORA_INITED);
 }
+#endif
 
 #define lora_must_join() \
     ( \
@@ -298,26 +312,36 @@ driver_error_t *lora_setup(int band) {
     if (!setup) {
         syslog(LOG_DEBUG, "lora: setup, band %d", band);
 		
+        // Create event group for sync driver with LoRa events
+        if (!loraEvent) {
+        	loraEvent = xEventGroupCreate();
+        }
+
+#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
 		// LMIC init
-        driver_error_t *error;
-
 		if (!(error = os_init())) {
-	        // Create event group for sync driver with LMIC events
-			loraEvent = xEventGroupCreate();
-
 			// Set first callback, for init lora stack
 			os_setCallback(&initjob, lora_init);
-
-			// Wait for stack initialization
-		    xEventGroupWaitBits(loraEvent, evLORA_INITED, pdTRUE, pdFALSE, portMAX_DELAY);
 		} else {
 			setup = 0;
-
 			mtx_unlock(&lora_mtx);
 
-    		return error;
+			return driver_operation_error(LORA_DRIVER, LORA_ERR_CANT_SETUP, NULL);
 		}
+#endif
 
+#if CONFIG_LUA_RTOS_LORA_NODE_SEMTECH_STACK
+	    LoRaMacPrimitives_t LoRaMacPrimitives;
+	    LoRaMacCallback_t LoRaMacCallbacks;
+
+	    BoardInitMcu();
+
+        //LoRaMacInitialization( &LoRaMacPrimitives, &LoRaMacCallbacks, LORAMAC_REGION_EU868 );
+
+#endif
+
+		// Wait for stack initialization
+	    xEventGroupWaitBits(loraEvent, evLORA_INITED, pdTRUE, pdFALSE, portMAX_DELAY);
     }
 
 	setup = 1;
@@ -373,15 +397,19 @@ driver_error_t *lora_mac_set(const char command, const char *value) {
 				return driver_operation_error(LORA_DRIVER, LORA_ERR_INVALID_DR, NULL);
 			}
 
+#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
 			u1_t dr = data_rates[atoi((char *)value)];
 			if (dr == DR_NONE) {
 				return driver_operation_error(LORA_DRIVER, LORA_ERR_INVALID_DR, NULL);
 			}
 
 			current_dr = dr;
+#endif
 
 			if (!adr) {
+#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
 				LMIC_setDrTxpow(current_dr, 14);
+#endif
 			}
 
 			break;
@@ -389,23 +417,33 @@ driver_error_t *lora_mac_set(const char command, const char *value) {
 		case LORA_MAC_SET_ADR:
 			if (strcmp(value, "on") == 0) {
 				adr = 1;
+#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
 				LMIC_setAdrMode(1);
+#endif
 			} else {
 				adr = 0;
+#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
 				LMIC_setAdrMode(0);
+#endif
 			}
 			break;
 		
 		case LORA_MAC_SET_LINKCHK:
 			if (strcmp(value, "on") == 0) {
+#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
 				LMIC_setLinkCheckMode(1);
+#endif
 			} else {
+#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
 				LMIC_setLinkCheckMode(0);
+#endif
 			}
 			break;
 
 		case LORA_MAC_SET_RETX:
+#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
 			LMIC.txAttempts = atoi((char *)value);
+#endif
 			break;
 	}
 
@@ -445,6 +483,7 @@ driver_error_t *lora_mac_get(const char command, char **value) {
 			break;
 		
 		case LORA_MAC_GET_ADR:
+#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
 			if (LMIC.adrEnabled) {
 				result = (char *)malloc(3);
 				if (result) {
@@ -456,9 +495,11 @@ driver_error_t *lora_mac_get(const char command, char **value) {
 					strcpy(result, "off");
 				}				
 			}
+#endif
 			break;
 
 		case LORA_MAC_GET_LINKCHK:
+#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
 			if (LMIC.adrAckReq == LINK_CHECK_INIT) {
 				result = (char *)malloc(3);
 				if (result) {
@@ -470,12 +511,15 @@ driver_error_t *lora_mac_get(const char command, char **value) {
 					strcpy(result, "off");
 				}
 			}
+#endif
 			break;
 
 		case LORA_MAC_GET_RETX:
 			result = (char *)malloc(2);
 			if (result) {
+#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
 				sprintf(result,"%d",LMIC.txAttempts);
+#endif
 			}
 			break;
 	}
@@ -517,10 +561,14 @@ driver_error_t *lora_join() {
 
     // Set DR
     if (!adr) {
+#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
         LMIC_setDrTxpow(current_dr, 14);
+#endif
     }
 
+#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
 	hal_lmic_join();
+#endif
 
 	// Wait for one of the expected events
     EventBits_t uxBits = xEventGroupWaitBits(loraEvent, evLORA_JOINED | evLORA_JOIN_DENIED, pdTRUE, pdFALSE, portMAX_DELAY);
@@ -566,12 +614,14 @@ driver_error_t *lora_tx(int cnf, int port, const char *data) {
             return driver_operation_error(LORA_DRIVER, LORA_ERR_KEYS_NOT_CONFIGURED, NULL);
     	} else {
     		if (!session_init) {
+#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
     			LMIC_setSession (0x1, DEVADDR, NWKSKEY, APPSKEY);
 
     		    /* TTN uses SF9 for its RX2 window. */
     		    LMIC.dn2Dr = DR_SF9;
-
+#endif
     		    session_init = 1;
+
     		}
     	}
     }
@@ -591,16 +641,22 @@ driver_error_t *lora_tx(int cnf, int port, const char *data) {
 	// Put message id
 	msgid++;
 
+#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
 	LMIC.seqnoUp = msgid;
 	payload[payload_len] = msgid;
+#endif
 
 	// Set DR
 	if (!adr) {
+#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
 		LMIC_setDrTxpow(current_dr, 14);
+#endif
 	}
 
 	// Send
+#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
 	hal_lmic_tx(port, payload, payload_len, cnf);
+#endif
 
 	// Wait for one of the expected events
     EventBits_t uxBits = xEventGroupWaitBits(loraEvent, evLORA_TX_COMPLETE | evLORA_ACK_NOT_RECEIVED, pdTRUE, pdFALSE, portMAX_DELAY);
@@ -627,6 +683,7 @@ void lora_set_rx_callback(lora_rx *callback) {
 	mtx_unlock(&lora_mtx);
 }
 
+#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
 // This functions are needed for the LMIC stack for pass
 // connection data
 void os_getArtEui (u1_t* buf) { 
@@ -640,12 +697,12 @@ void os_getDevEui (u1_t* buf) {
 void os_getDevKey (u1_t* buf) { 
 	memcpy(buf, APPKEY, 16);
 }
+#endif
 
 void _lora_init() {
     // Create lora mutex
     mtx_init(&lora_mtx, NULL, NULL, 0);
 
-    // LMIC need to mantain some information in RTC
     status_set(STATUS_NEED_RTC_SLOW_MEM);
 
     // Get device EUI from flash id

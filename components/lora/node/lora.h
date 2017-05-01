@@ -1,5 +1,5 @@
 /*
- * Lua RTOS, Lora WAN driver for RN2483
+ * Lua RTOS, Lora WAN driver
  *
  * Copyright (C) 2015 - 2017
  * IBEROXARXA SERVICIOS INTEGRALES, S.L.
@@ -33,6 +33,20 @@
 #include "sdkconfig.h"
 
 #if CONFIG_LUA_RTOS_LORA_DEVICE_TYPE_NODE
+
+#include <stdint.h>
+
+typedef uint8_t            bit_t;
+typedef uint8_t            u1_t;
+typedef int8_t             s1_t;
+typedef uint16_t           u2_t;
+typedef int16_t            s2_t;
+typedef uint32_t           u4_t;
+typedef int32_t            s4_t;
+typedef uint64_t           u8_t;
+typedef int64_t            s8_t;
+typedef unsigned int       uint;
+typedef const char* str_t;
 
 #include <sys/driver.h>
 
