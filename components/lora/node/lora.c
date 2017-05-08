@@ -57,12 +57,6 @@
 #include "lmic.h"
 #endif
 
-#if CONFIG_LUA_RTOS_LORA_NODE_SEMTECH_STACK
-#include "board.h"
-#include "LoRaMac.h"
-//#include "Region.h"
-#endif
-
 #include "common.h"
 
 // Driver message errors
@@ -295,6 +289,8 @@ static void lora_init(osjob_t *j) {
 
 // Setup driver
 driver_error_t *lora_setup(int band) {
+	driver_error_t *error;
+
 	#if CONFIG_LUA_RTOS_LORA_NODE_BAND_EU868
 	if (band != 868) {
 		return driver_operation_error(LORA_DRIVER, LORA_ERR_INVALID_BAND, NULL);
@@ -331,13 +327,9 @@ driver_error_t *lora_setup(int band) {
 #endif
 
 #if CONFIG_LUA_RTOS_LORA_NODE_SEMTECH_STACK
-	    LoRaMacPrimitives_t LoRaMacPrimitives;
-	    LoRaMacCallback_t LoRaMacCallbacks;
-
-	    BoardInitMcu();
-
-        //LoRaMacInitialization( &LoRaMacPrimitives, &LoRaMacCallbacks, LORAMAC_REGION_EU868 );
-
+		if ((error = _lora_setup())) {
+			return error;
+		}
 #endif
 
 		// Wait for stack initialization

@@ -103,37 +103,6 @@ void BoardEnableIrq( void )
     }
 }
 
-void BoardInitPeriph( void )
-{
-    Gpio_t ioPin;
-#if 0
-
-    // Init the GPIO pins
-    //GpioInit( &ioPin, IRQ_MPL3115, PIN_INPUT, PIN_PUSH_PULL, PIN_NO_PULL, 1 );
-    //GpioInit( &ioPin, IRQ_MAG3110, PIN_INPUT, PIN_PUSH_PULL, PIN_NO_PULL, 1 );
-    //GpioInit( &ioPin, SPARE_IO_EXT_3, PIN_INPUT, PIN_PUSH_PULL, PIN_NO_PULL, 1 );
-    //GpioInit( &ioPin, SPARE_IO_EXT_4, PIN_INPUT, PIN_PUSH_PULL, PIN_NO_PULL, 1 );
-    //GpioInit( &ioPin, SPARE_IO_EXT_5, PIN_INPUT, PIN_PUSH_PULL, PIN_NO_PULL, 1 );
-    //GpioInit( &ioPin, SPARE_IO_EXT_6, PIN_INPUT, PIN_PUSH_PULL, PIN_NO_PULL, 1 );
-    //GpioInit( &ioPin, SPARE_IO_EXT_7, PIN_INPUT, PIN_PUSH_PULL, PIN_NO_PULL, 1 );
-    GpioInit( &ioPin, N_IRQ_SX9500, PIN_INPUT, PIN_PUSH_PULL, PIN_NO_PULL, 1 );
-    GpioInit( &ioPin, IRQ_1_MMA8451, PIN_INPUT, PIN_PUSH_PULL, PIN_NO_PULL, 1 );
-    GpioInit( &ioPin, IRQ_2_MMA8451, PIN_INPUT, PIN_PUSH_PULL, PIN_NO_PULL, 1 );
-    GpioInit( &ioPin, TX_EN_SX9500, PIN_OUTPUT, PIN_PUSH_PULL, PIN_NO_PULL, 1 );
-    GpioInit( &Led1, LED_1, PIN_OUTPUT, PIN_PUSH_PULL, PIN_NO_PULL, 0 );
-    GpioInit( &Led2, LED_2, PIN_OUTPUT, PIN_PUSH_PULL, PIN_NO_PULL, 0 );
-    GpioInit( &Led3, LED_3, PIN_OUTPUT, PIN_PUSH_PULL, PIN_NO_PULL, 0 );
-
-    // Init GPS
-    GpsInit( );
-
-    // Switch LED 1, 2, 3 OFF
-    GpioWrite( &Led1, 1 );
-    GpioWrite( &Led2, 1 );
-    GpioWrite( &Led3, 1 );
-#endif
-}
-
 void BoardInitMcu( void )
 {
     if( McuInitialized == false )
@@ -141,8 +110,6 @@ void BoardInitMcu( void )
         RtcInit( );
         BoardUnusedIoInit( );
     }
-
-    //AdcInit( &Adc, BAT_LEVEL_PIN );
 
 #if CONFIG_LUA_RTOS_LORA_NODE_RADIO_SX1272
     SpiInit( &SX1272.Spi, RADIO_MOSI, RADIO_MISO, RADIO_SCLK, 0 );
@@ -162,25 +129,6 @@ void BoardInitMcu( void )
             CalibrateSystemWakeupTime( );
         }
     }
-}
-
-void BoardDeInitMcu( void )
-{
-#if 0
-
-    Gpio_t ioPin;
-
-    AdcDeInit( &Adc );
-
-    SpiDeInit( &SX1272.Spi );
-    SX1272IoDeInit( );
-
-    GpioInit( &ioPin, OSC_HSE_IN, PIN_ANALOGIC, PIN_PUSH_PULL, PIN_NO_PULL, 1 );
-    GpioInit( &ioPin, OSC_HSE_OUT, PIN_ANALOGIC, PIN_PUSH_PULL, PIN_NO_PULL, 1 );
-
-    GpioInit( &ioPin, OSC_LSE_IN, PIN_INPUT, PIN_PUSH_PULL, PIN_PULL_DOWN, 1 );
-    GpioInit( &ioPin, OSC_LSE_OUT, PIN_INPUT, PIN_PUSH_PULL, PIN_PULL_DOWN, 1 );
-#endif
 }
 
 uint32_t BoardGetRandomSeed( void )

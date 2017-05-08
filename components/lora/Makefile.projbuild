@@ -9,3 +9,6 @@ CFLAGS += -DDEBUG_GPS=0
 
 CFLAGS += -Wno-char-subscripts
 CFLAGS += -Wno-maybe-uninitialized
+
+CFLAGS += -DREGION_EU868
+CFLAGS += -DUSE_BAND_868

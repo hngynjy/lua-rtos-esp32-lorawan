@@ -2220,6 +2220,7 @@ LoRaMacStatus_t LoRaMacInitialization( LoRaMacPrimitives_t *primitives, LoRaMacC
     {
         return LORAMAC_STATUS_PARAMETER_INVALID;
     }
+
     // Verify if the region is supported
     if( RegionIsActive( region ) == false )
     {

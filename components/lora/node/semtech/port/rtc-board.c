@@ -256,51 +256,12 @@ void RtcInit( void )
 
 	/*Enable timer interrupt*/
 	timer_enable_intr(timer_group, timer_idx);
+
 	/*Set ISR handler*/
 	timer_isr_register(timer_group, timer_idx, timer_isr, (void*) timer_idx, ESP_INTR_FLAG_IRAM, NULL);
+
 	/*Start timer counter*/
 	timer_start(timer_group, timer_idx);
-
-
-#if 0
-    RtcCalendar_t rtcInit;
-
-    if( RtcInitialized == false )
-    {
-        __HAL_RCC_RTC_ENABLE( );
-
-        RtcHandle.Instance = RTC;
-        RtcHandle.Init.HourFormat = RTC_HOURFORMAT_24;
-
-        RtcHandle.Init.AsynchPrediv = 3;
-        RtcHandle.Init.SynchPrediv = 3;
-
-        RtcHandle.Init.OutPut = RTC_OUTPUT_DISABLE;
-        RtcHandle.Init.OutPutPolarity = RTC_OUTPUT_POLARITY_HIGH;
-        RtcHandle.Init.OutPutType = RTC_OUTPUT_TYPE_OPENDRAIN;
-        HAL_RTC_Init( &RtcHandle );
-
-        // Set Date: Friday 1st of January 2000
-        rtcInit.CalendarDate.Year = 0;
-        rtcInit.CalendarDate.Month = 1;
-        rtcInit.CalendarDate.Date = 1;
-        rtcInit.CalendarDate.WeekDay = RTC_WEEKDAY_SATURDAY;
-        HAL_RTC_SetDate( &RtcHandle, &rtcInit.CalendarDate, RTC_FORMAT_BIN );
-
-        // Set Time: 00:00:00
-        rtcInit.CalendarTime.Hours = 0;
-        rtcInit.CalendarTime.Minutes = 0;
-        rtcInit.CalendarTime.Seconds = 0;
-        rtcInit.CalendarTime.TimeFormat = RTC_HOURFORMAT12_AM;
-        rtcInit.CalendarTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
-        rtcInit.CalendarTime.StoreOperation = RTC_STOREOPERATION_RESET;
-        HAL_RTC_SetTime( &RtcHandle, &rtcInit.CalendarTime, RTC_FORMAT_BIN );
-
-        HAL_NVIC_SetPriority( RTC_Alarm_IRQn, 4, 0 );
-        HAL_NVIC_EnableIRQ( RTC_Alarm_IRQn );
-        RtcInitialized = true;
-    }
-#endif
 }
 
 void RtcSetTimeout( uint32_t timeout )

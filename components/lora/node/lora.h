@@ -98,6 +98,9 @@ driver_error_t *lora_tx(int cnf, int port, const char *data);
 void lora_set_rx_callback(lora_rx *callback);
 void _lora_init();
 
+
+driver_error_t *_lora_setup();
+
 #endif
 
 #endif /* LORA_H */

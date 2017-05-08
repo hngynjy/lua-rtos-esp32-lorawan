@@ -9,6 +9,16 @@
 #include <string.h>
 #include <stdint.h>
 
+#include <sys/delay.h>
+#include <sys/syslog.h>
+
+#define assert_param(cond) \
+if (!cond) { \
+	syslog(LOG_ERR, "assert at %s, line %s\n", __FILE__, __LINE__); \
+}
+
+#define DelayMs(ms) delay(ms)
+
 typedef uint32_t RTC_DateTypeDef;
 typedef uint32_t RTC_TimeTypeDef;
 typedef uint32_t RTC_HandleTypeDef;
@@ -17,9 +27,7 @@ typedef struct {
 	int *Instance;
 } SPI_HandleTypeDef;;
 
-//#include "stm32l1xx.h"
-//#include "stm32l1xx_hal.h"
-//#include "utilities.h"
+#include "utilities.h"
 #include "timer.h"
 //#include "delay.h"
 #include "gpio.h"
