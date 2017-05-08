@@ -5,8 +5,17 @@
 #include "lora.h"
 #include "board.h"
 #include "LoRaMac.h"
+#include "region.h"
 
 #include <sys/driver.h>
+
+#define LC4                { 867100000, 867100000, { ( ( DR_5 << 4 ) | DR_0 ) }, 0 }
+#define LC5                { 867300000, 867300000, { ( ( DR_5 << 4 ) | DR_0 ) }, 0 }
+#define LC6                { 867500000, 867500000, { ( ( DR_5 << 4 ) | DR_0 ) }, 0 }
+#define LC7                { 867700000, 867700000, { ( ( DR_5 << 4 ) | DR_0 ) }, 0 }
+#define LC8                { 867900000, 867900000, { ( ( DR_5 << 4 ) | DR_0 ) }, 0 }
+#define LC9                { 868800000, 868800000, { ( ( DR_7 << 4 ) | DR_7 ) }, 2 }
+#define LC10               { 868300000, 868300000, { ( ( DR_6 << 4 ) | DR_6 ) }, 1 }
 
 static void McpsConfirm( McpsConfirm_t *mcpsConfirm ) {
 	printf("McpsConfirm %d\r\n", mcpsConfirm->McpsRequest);
@@ -101,6 +110,57 @@ driver_error_t *_lora_setup() {
 
     mibReq.Type = MIB_PUBLIC_NETWORK;
     mibReq.Param.EnablePublicNetwork = 1;
+    status = LoRaMacMibSetRequestConfirm( &mibReq );
+    if ((error = check(status))) {
+    	return error;
+    }
+
+    LoRaMacTestSetDutyCycleOn(1);
+
+    status = LoRaMacChannelAdd( 3, ( ChannelParams_t )LC4 );
+    if ((error = check(status))) {
+    	return error;
+    }
+
+    status = LoRaMacChannelAdd( 4, ( ChannelParams_t )LC5 );
+    if ((error = check(status))) {
+    	return error;
+    }
+
+    status = LoRaMacChannelAdd( 5, ( ChannelParams_t )LC6 );
+    if ((error = check(status))) {
+    	return error;
+    }
+
+    status = LoRaMacChannelAdd( 6, ( ChannelParams_t )LC7 );
+    if ((error = check(status))) {
+    	return error;
+    }
+
+    status = LoRaMacChannelAdd( 7, ( ChannelParams_t )LC8 );
+    if ((error = check(status))) {
+    	return error;
+    }
+
+    status = LoRaMacChannelAdd( 8, ( ChannelParams_t )LC9 );
+    if ((error = check(status))) {
+    	return error;
+    }
+
+    status = LoRaMacChannelAdd( 9, ( ChannelParams_t )LC10 );
+    if ((error = check(status))) {
+    	return error;
+    }
+
+    mibReq.Type = MIB_RX2_DEFAULT_CHANNEL;
+    mibReq.Param.Rx2DefaultChannel = ( Rx2ChannelParams_t ){ 869525000, DR_3 };
+    status = LoRaMacMibSetRequestConfirm( &mibReq );
+    if ((error = check(status))) {
+    	return error;
+    }
+
+    mibReq.Type = MIB_RX2_CHANNEL;
+    mibReq.Param.Rx2Channel = ( Rx2ChannelParams_t ){ 869525000, DR_3 };
     status = LoRaMacMibSetRequestConfirm( &mibReq );
     if ((error = check(status))) {
     	return error;

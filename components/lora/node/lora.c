@@ -324,6 +324,9 @@ driver_error_t *lora_setup(int band) {
 
 			return driver_operation_error(LORA_DRIVER, LORA_ERR_CANT_SETUP, NULL);
 		}
+
+		// Wait for stack initialization
+	    xEventGroupWaitBits(loraEvent, evLORA_INITED, pdTRUE, pdFALSE, portMAX_DELAY);
 #endif
 
 #if CONFIG_LUA_RTOS_LORA_NODE_SEMTECH_STACK
@@ -331,9 +334,6 @@ driver_error_t *lora_setup(int band) {
 			return error;
 		}
 #endif
-
-		// Wait for stack initialization
-	    xEventGroupWaitBits(loraEvent, evLORA_INITED, pdTRUE, pdFALSE, portMAX_DELAY);
     }
 
 	setup = 1;

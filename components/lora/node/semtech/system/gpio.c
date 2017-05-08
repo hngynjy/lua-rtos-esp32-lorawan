@@ -23,6 +23,7 @@ Maintainer: Miguel Luis and Gregory Cristian
 #include "driver/gpio.h"
 #include <sys/status.h>
 #include <drivers/gpio.h>
+#include <drivers/spi.h>
 
 #if defined( BOARD_IOE_EXT )
 #include "gpio-ioe.h"
@@ -43,7 +44,7 @@ Maintainer: Miguel Luis and Gregory Cristian
 
 void GpioInit( Gpio_t *obj, PinNames pin, PinModes mode,  PinConfigs config, PinTypes type, uint32_t value )
 {
-	memset(obj, 0, sizeof(Gpio_t));
+	if (pin == 0) return;
 
 	if (SEMTECH_IS_DIO_PIN(pin)) {
 		gpio_pin_input(pin);
@@ -76,12 +77,17 @@ void GpioInit( Gpio_t *obj, PinNames pin, PinModes mode,  PinConfigs config, Pin
 				delay(5);
 			}
 		#endif
+
+		obj->pin = pin;
 	} else if (SEMTECH_IS_NSS_PIN(pin)) {
+		obj->pin = pin;
 	}
 }
 
 void GpioSetInterrupt( Gpio_t *obj, IrqModes irqMode, IrqPriorities irqPriority, GpioIrqHandler *irqHandler )
 {
+	if (obj->pin == 0) return;
+
 	if (SEMTECH_IS_DIO_PIN(obj->pin)) {
 		if (!status_get(STATUS_ISR_SERVICE_INSTALLED)) {
 			gpio_install_isr_service(0);
@@ -96,8 +102,9 @@ void GpioSetInterrupt( Gpio_t *obj, IrqModes irqMode, IrqPriorities irqPriority,
 
 void GpioWrite( Gpio_t *obj, uint32_t value )
 {
+	if (obj->pin == 0) return;
+
 	if (SEMTECH_IS_NSS_PIN(obj->pin)) {
-		printf("GpioWrite spi_instance: %d\r\n", (int)obj->port);
 		if (value) {
 			spi_ll_deselect((int)obj->port);
 		} else {

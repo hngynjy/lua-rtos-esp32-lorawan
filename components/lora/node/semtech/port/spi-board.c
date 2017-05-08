@@ -34,8 +34,6 @@ void SpiInit(Spi_t *obj, PinNames mosi, PinNames miso, PinNames sclk, PinNames n
         return;
     }
 
-	printf("SpiInit spi_instance: %d\r\n",spi_instance);
-
 	memset(obj,0,sizeof(Spi_t));
 
 	obj->Miso.pin = miso;
@@ -67,9 +65,7 @@ uint16_t SpiInOut( Spi_t *obj, uint16_t outData )
 {
 	uint8_t rxData;
 
-	spi_ll_select((int)obj->Spi.Instance);
 	spi_ll_transfer((int)obj->Spi.Instance, (uint8_t)outData, &rxData);
-	spi_ll_deselect((int)obj->Spi.Instance);
 
 	return rxData;
 }

@@ -2339,6 +2339,7 @@ LoRaMacStatus_t LoRaMacInitialization( LoRaMacPrimitives_t *primitives, LoRaMacC
     RadioEvents.RxError = OnRadioRxError;
     RadioEvents.TxTimeout = OnRadioTxTimeout;
     RadioEvents.RxTimeout = OnRadioRxTimeout;
+
     Radio.Init( &RadioEvents );
 
     // Random seed initialization
@@ -2346,6 +2347,7 @@ LoRaMacStatus_t LoRaMacInitialization( LoRaMacPrimitives_t *primitives, LoRaMacC
 
     PublicNetwork = true;
     Radio.SetPublicNetwork( PublicNetwork );
+
     Radio.Sleep( );
 
     return LORAMAC_STATUS_OK;
