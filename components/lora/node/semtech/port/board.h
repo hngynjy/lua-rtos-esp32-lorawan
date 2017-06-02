@@ -1,6 +1,8 @@
 #ifndef LORA_NODE_SEMTECH_H_
 #define LORA_NODE_SEMTECH_H_
 
+#include "esp_attr.h"
+
 #include "sdkconfig.h"
 
 #include <stdbool.h>

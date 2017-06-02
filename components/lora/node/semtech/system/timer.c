@@ -197,7 +197,7 @@ static void TimerInsertNewHeadTimer( TimerEvent_t *obj, uint32_t remainingTime )
     TimerSetTimeout( TimerListHead );
 }
 
-void TimerIrqHandler( void )
+void IRAM_ATTR TimerIrqHandler( void )
 {
     uint32_t elapsedTime = 0;
 

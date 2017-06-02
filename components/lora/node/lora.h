@@ -100,6 +100,9 @@ void _lora_init();
 
 
 driver_error_t *_lora_setup();
+driver_error_t *_lora_mac_set(const char command, const char *value);
+driver_error_t *_lora_mac_get(const char command, char **value);
+driver_error_t *_lora_tx(uint8_t cnf, uint8_t port, uint8_t *payload, uint16_t len);
 
 #endif
 

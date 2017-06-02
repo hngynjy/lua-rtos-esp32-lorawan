@@ -1401,7 +1401,7 @@ void SX1276OnTimeoutIrq( void )
 void SX1276OnDio0Irq( void )
 {
     volatile uint8_t irqFlags = 0;
-
+uart_writes(1, "SX1276OnDio0Irq\r\n");
     switch( SX1276.Settings.State )
     {
         case RF_RX_RUNNING:
@@ -1600,6 +1600,7 @@ void SX1276OnDio0Irq( void )
 
 void SX1276OnDio1Irq( void )
 {
+	uart_writes(1, "SX1276OnDio1Irq\r\n");
     switch( SX1276.Settings.State )
     {
         case RF_RX_RUNNING:
@@ -1677,6 +1678,7 @@ void SX1276OnDio1Irq( void )
 
 void SX1276OnDio2Irq( void )
 {
+	uart_writes(1, "SX1276OnDio2Irq\r\n");
     switch( SX1276.Settings.State )
     {
         case RF_RX_RUNNING:

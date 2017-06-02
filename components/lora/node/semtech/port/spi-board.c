@@ -29,7 +29,7 @@ void SpiInit(Spi_t *obj, PinNames mosi, PinNames miso, PinNames sclk, PinNames n
 
 	int spi_instance = 0;
 
-	if ((error = spi_setup(CONFIG_LUA_RTOS_LORA_NODE_SPI, 1, CONFIG_LUA_RTOS_LORA_NODE_CS, 0, LORA_SPI_KHZ * 1000, &spi_instance))) {
+	if ((error = spi_setup(CONFIG_LUA_RTOS_LORA_NODE_SPI, 1, CONFIG_LUA_RTOS_LORA_NODE_CS, 0, LORA_SPI_KHZ * 1000, SPI_FLAG_WRITE | SPI_FLAG_READ, &spi_instance))) {
         syslog(LOG_ERR, "LoRa node cannot open spi%u", CONFIG_LUA_RTOS_LORA_NODE_SPI);
         return;
     }

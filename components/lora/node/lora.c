@@ -344,6 +344,8 @@ driver_error_t *lora_setup(int band) {
 }
 
 driver_error_t *lora_mac_set(const char command, const char *value) {
+	driver_error_t *error;
+
     mtx_lock(&lora_mtx);
 
     if (!setup) {
@@ -351,92 +353,9 @@ driver_error_t *lora_mac_set(const char command, const char *value) {
 		return driver_operation_error(LORA_DRIVER, LORA_ERR_NOT_SETUP, NULL);
     }
 
-	switch(command) {
-		case LORA_MAC_SET_DEVADDR:
-			hex_string_to_val((char *)value, (char *)(&DEVADDR), 4, 1);
-			break;
-		
-		case LORA_MAC_SET_DEVEUI:
-			#if CONFIG_LUA_RTOS_READ_FLASH_UNIQUE_ID
-			mtx_unlock(&lora_mtx);
-			return driver_operation_error(LORA_DRIVER, LORA_ERR_INVALID_ARGUMENT, "in this board DevEui is assigned automatically");
-			#else
-			// DEVEUI must be in little-endian format
-			hex_string_to_val((char *)value, (char *)DEVEUI, 8, 1);
-			#endif
-			break;
-		
-		case LORA_MAC_SET_APPEUI:
-			// APPEUI must be in little-endian format
-			hex_string_to_val((char *)value, (char *)APPEUI, 8, 1);
-			break;
-		
-		case LORA_MAC_SET_NWKSKEY:
-			hex_string_to_val((char *)value, (char *)NWKSKEY, 16, 0);
-			break;
-		
-		case LORA_MAC_SET_APPSKEY:
-			hex_string_to_val((char *)value, (char *)APPSKEY, 16, 0);
-			break;
-		
-		case LORA_MAC_SET_APPKEY:
-			// APPKEY must be in big-endian format
-			hex_string_to_val((char *)value, (char *)APPKEY, 16, 0);
-			break;
-		
-		case LORA_MAC_SET_DR:
-			if ((atoi((char *)value) < 0) || (atoi((char *)value) > 15)) {
-				return driver_operation_error(LORA_DRIVER, LORA_ERR_INVALID_DR, NULL);
-			}
-
-#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
-			u1_t dr = data_rates[atoi((char *)value)];
-			if (dr == DR_NONE) {
-				return driver_operation_error(LORA_DRIVER, LORA_ERR_INVALID_DR, NULL);
-			}
-
-			current_dr = dr;
-#endif
-
-			if (!adr) {
-#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
-				LMIC_setDrTxpow(current_dr, 14);
-#endif
-			}
-
-			break;
-		
-		case LORA_MAC_SET_ADR:
-			if (strcmp(value, "on") == 0) {
-				adr = 1;
-#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
-				LMIC_setAdrMode(1);
-#endif
-			} else {
-				adr = 0;
-#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
-				LMIC_setAdrMode(0);
-#endif
-			}
-			break;
-		
-		case LORA_MAC_SET_LINKCHK:
-			if (strcmp(value, "on") == 0) {
-#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
-				LMIC_setLinkCheckMode(1);
-#endif
-			} else {
-#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
-				LMIC_setLinkCheckMode(0);
-#endif
-			}
-			break;
-
-		case LORA_MAC_SET_RETX:
-#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
-			LMIC.txAttempts = atoi((char *)value);
-#endif
-			break;
+	if ((error = _lora_mac_set(command, value))) {
+	    mtx_unlock(&lora_mtx);
+		return error;
 	}
 
     mtx_unlock(&lora_mtx);
@@ -445,80 +364,16 @@ driver_error_t *lora_mac_set(const char command, const char *value) {
 }
 
 driver_error_t *lora_mac_get(const char command, char **value) {
-	char *result = NULL;
+	driver_error_t *error;
 
-    mtx_lock(&lora_mtx);
+	mtx_lock(&lora_mtx);
 
-	switch(command) {
-		case LORA_MAC_GET_DEVADDR:
-			break;
-		
-		case LORA_MAC_GET_DEVEUI:
-			result = (char *)malloc(17);
-			
-			// DEVEUI is in little-endian format
-			val_to_hex_string(result, (char *)DEVEUI, 8, 1);
-			break;
-		
-		case LORA_MAC_GET_APPEUI:
-			result = (char *)malloc(17);
-			
-			// APPEUI is in little-endian format
-			val_to_hex_string(result, (char *)APPEUI, 8, 1);
-			break;
-
-		case LORA_MAC_GET_DR:
-			result = (char *)malloc(2);
-			if (result) {
-				sprintf(result,"%d",current_dr);
-			}
-			break;
-		
-		case LORA_MAC_GET_ADR:
-#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
-			if (LMIC.adrEnabled) {
-				result = (char *)malloc(3);
-				if (result) {
-					strcpy(result, "on");
-				}
-			} else {
-				result = (char *)malloc(4);
-				if (result) {
-					strcpy(result, "off");
-				}				
-			}
-#endif
-			break;
-
-		case LORA_MAC_GET_LINKCHK:
-#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
-			if (LMIC.adrAckReq == LINK_CHECK_INIT) {
-				result = (char *)malloc(3);
-				if (result) {
-					strcpy(result, "on");
-				}
-			} else {
-				result = (char *)malloc(4);
-				if (result) {
-					strcpy(result, "off");
-				}
-			}
-#endif
-			break;
-
-		case LORA_MAC_GET_RETX:
-			result = (char *)malloc(2);
-			if (result) {
-#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
-				sprintf(result,"%d",LMIC.txAttempts);
-#endif
-			}
-			break;
+	if ((error = _lora_mac_get(command, value))) {
+	    mtx_unlock(&lora_mtx);
+		return error;
 	}
 
     mtx_unlock(&lora_mtx);
-
-    *value = result;
 
 	return NULL;
 }
@@ -580,6 +435,7 @@ driver_error_t *lora_join() {
 }
 
 driver_error_t *lora_tx(int cnf, int port, const char *data) {
+	driver_error_t *error;
 	uint8_t *payload;
 	uint8_t payload_len;
 	
@@ -590,6 +446,7 @@ driver_error_t *lora_tx(int cnf, int port, const char *data) {
         return driver_operation_error(LORA_DRIVER, LORA_ERR_NOT_SETUP, NULL);
     }
 
+#if 0
     if (lora_must_join()) {
     	if (lora_can_participate_otaa()) {
             if (!joined) {
@@ -617,7 +474,8 @@ driver_error_t *lora_tx(int cnf, int port, const char *data) {
     		}
     	}
     }
-	
+#endif
+
 	payload_len = strlen(data) / 2;
 
 	// Allocate buffer por payload	
@@ -630,25 +488,13 @@ driver_error_t *lora_tx(int cnf, int port, const char *data) {
 	// Convert input payload (coded in hex string) into a byte buffer
 	hex_string_to_val((char *)data, (char *)payload, payload_len, 0);
 
-	// Put message id
-	msgid++;
-
-#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
-	LMIC.seqnoUp = msgid;
-	payload[payload_len] = msgid;
-#endif
-
-	// Set DR
-	if (!adr) {
-#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
-		LMIC_setDrTxpow(current_dr, 14);
-#endif
+	if ((error = _lora_tx(cnf, port, payload, payload_len))) {
+		mtx_unlock(&lora_mtx);
+		return error;
 	}
 
-	// Send
-#if CONFIG_LUA_RTOS_LORA_NODE_LMIC_STACK
-	hal_lmic_tx(port, payload, payload_len, cnf);
-#endif
+	// Put message id
+	msgid++;
 
 	// Wait for one of the expected events
     EventBits_t uxBits = xEventGroupWaitBits(loraEvent, evLORA_TX_COMPLETE | evLORA_ACK_NOT_RECEIVED, pdTRUE, pdFALSE, portMAX_DELAY);

@@ -303,56 +303,30 @@ TimerTime_t RtcGetAdjustedTimeoutValue( uint32_t timeout )
 
 TimerTime_t RtcGetTimerValue( void )
 {
-#if 0
-    return( RtcConvertCalendarTickToTimerTime( NULL ) );
-#endif
-
-    return 0;
+	return msecs;
 }
 
 TimerTime_t RtcGetElapsedAlarmTime( void )
 {
-    TimerTime_t currentTime = 0;
-#if 0
-    TimerTime_t contextTime = 0;
-
-    currentTime = RtcConvertCalendarTickToTimerTime( NULL );
-    contextTime = RtcConvertCalendarTickToTimerTime( &RtcCalendarContext );
-
-    if( currentTime < contextTime )
-    {
-        return( currentTime + ( 0xFFFFFFFF - contextTime ) );
-    }
-    else
-    {
-        return( currentTime - contextTime );
-    }
-#endif
-
-    return 0;
+	return msecs;
 }
 
 TimerTime_t RtcComputeFutureEventTime( TimerTime_t futureEventInTime )
 {
-#if 0
     return( RtcGetTimerValue( ) + futureEventInTime );
-#endif
-
-    return 0;
 }
 
 TimerTime_t RtcComputeElapsedTime( TimerTime_t eventInTime )
 {
     TimerTime_t elapsedTime = 0;
 
-#if 0
     // Needed at boot, cannot compute with 0 or elapsed time will be equal to current time
     if( eventInTime == 0 )
     {
         return 0;
     }
 
-    elapsedTime = RtcConvertCalendarTickToTimerTime( NULL );
+    elapsedTime = msecs;
 
     if( elapsedTime < eventInTime )
     { // roll over of the counter
@@ -362,9 +336,6 @@ TimerTime_t RtcComputeElapsedTime( TimerTime_t eventInTime )
     {
         return( elapsedTime - eventInTime );
     }
-#endif
-
-    return 0;
 }
 
 void BlockLowPowerDuringTask ( bool status )

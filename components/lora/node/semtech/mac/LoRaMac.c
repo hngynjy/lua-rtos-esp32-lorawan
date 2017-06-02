@@ -1890,6 +1890,8 @@ static LoRaMacStatus_t ScheduleTx( void )
     {
         if( ValidatePayloadLength( LoRaMacTxPayloadLen, LoRaMacParams.ChannelsDatarate, MacCommandsBufferIndex ) == false )
         {
+        	printf("5\r\n");
+
             return LORAMAC_STATUS_LENGTH_ERROR;
         }
         RxWindow1Delay = LoRaMacParams.ReceiveDelay1 + RxWindow1Config.WindowOffset;
@@ -1899,11 +1901,13 @@ static LoRaMacStatus_t ScheduleTx( void )
     // Schedule transmission of frame
     if( dutyCycleTimeOff == 0 )
     {
+    	printf("1\r\n");
         // Try to send now
         return SendFrameOnChannel( Channel );
     }
     else
     {
+    	printf("2\r\n");
         // Send later - prepare timer
         LoRaMacState |= LORAMAC_TX_DELAYED;
         TimerSetValue( &TxDelayedTimer, dutyCycleTimeOff );
