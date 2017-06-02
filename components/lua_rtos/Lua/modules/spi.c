@@ -49,6 +49,7 @@ static int lspi_setup(lua_State* L) {
 	driver_error_t *error;
 	uint32_t clock;
 	int spi_mode = 0;
+	int flags = SPI_FLAG_WRITE | SPI_FLAG_READ;
 
 	id = luaL_checkinteger(L, 1);
 	is_master = luaL_checkinteger(L, 2) == 1;
@@ -57,15 +58,20 @@ static int lspi_setup(lua_State* L) {
 	data_bits = luaL_checkinteger(L, 5);
 	spi_mode = luaL_checkinteger(L, 6);
 
+	if (lua_gettop(L) == 7) {
+		flags = luaL_checkinteger(L, 7);
+	}
+
 	spi_userdata *spi = (spi_userdata *)lua_newuserdata(L, sizeof(spi_userdata));
 
-	if ((error = spi_setup(id, is_master, cs, spi_mode, clock * 1000, &spi->spi_device))) {
+	if ((error = spi_setup(id, is_master, cs, spi_mode, clock * 1000, flags, &spi->spi_device))) {
 	    return luaL_driver_error(L, error);
 	}
 
     luaL_getmetatable(L, "spi.ins");
     lua_setmetatable(L, -2);
 
+	(void)data_bits;
 	return 1;
 }
 
@@ -98,6 +104,7 @@ static int lspi_deselect(lua_State*L ) {
 }
 
 static int lspi_rw_helper( lua_State *L, int withread ) {
+	driver_error_t *error;
 	unsigned char value;
 	const char *sval;
 	spi_userdata *spi = NULL;
@@ -114,7 +121,11 @@ static int lspi_rw_helper( lua_State *L, int withread ) {
 
 	for (i = 2; i <= total; i++) {
 		if(lua_isnumber(L, i)) {
-			spi_transfer(spi->spi_device, lua_tointeger(L, i), &value);
+			error = spi_transfer(spi->spi_device, lua_tointeger(L, i), &value);
+			if (error) {
+				return luaL_driver_error(L, error);
+			}
+
 			if(withread) {
 				lua_pushinteger(L, value);
 				lua_rawseti(L, -2, residx++);
@@ -123,7 +134,10 @@ static int lspi_rw_helper( lua_State *L, int withread ) {
 		else if(lua_isstring( L, i )) {
 			sval = lua_tolstring(L, i, &len);
 			for(j = 0; j < len; j ++) {
-				spi_transfer(spi->spi_device, sval[j], &value);
+				error = spi_transfer(spi->spi_device, sval[j], &value);
+				if (error) {
+					return luaL_driver_error(L, error);
+				}
 				if (withread) {
 					lua_pushinteger(L, value);
 					lua_rawseti(L, -2, residx++);
@@ -146,7 +160,6 @@ static int lspi_readwrite(lua_State* L) {
 // Destructor
 static int lspi_ins_gc (lua_State *L) {
     spi_userdata *udata = NULL;
-printf("lspi_ins_gc\r\n");
     udata = (spi_userdata *)luaL_checkudata(L, 1, "spi.ins");
 	if (udata) {
 	//	free(udata->instance);
@@ -158,6 +171,8 @@ printf("lspi_ins_gc\r\n");
 static const LUA_REG_TYPE lspi_map[] = {
 	{ LSTRKEY( "setup"      ),	 LFUNCVAL( lspi_setup    ) },
 	{ LSTRKEY( "error"      ),   LROVAL  ( spi_error_map ) },
+	{ LSTRKEY( "WRITE"      ),	 LINTVAL ( SPI_FLAG_WRITE) },
+	{ LSTRKEY( "READ"       ),	 LINTVAL ( SPI_FLAG_READ ) },
 	{ LSTRKEY( "MASTER"     ),	 LINTVAL ( 1 ) },
 	{ LSTRKEY( "SLAVE"      ),	 LINTVAL ( 0 ) },
 	SPI_SPI0

@@ -37,7 +37,11 @@
 #if CONFIG_LUA_RTOS_USE_HTTP_SERVER
 #define LUA_USE_HTTP 1
 #else
-#define LUA_USE_HTTP 0
+	#if LUA_RTOS_USE_HTTP_SERVER
+	#define LUA_USE_HTTP 1
+	#else
+	#define LUA_USE_HTTP 0
+	#endif
 #endif
 
 /*
@@ -141,6 +145,10 @@
 	#endif
 #endif
 
-#define THREAD_LOCAL_STORAGE_POINTER_ID 1
+#if CONFIG_FREERTOS_THREAD_LOCAL_STORAGE_POINTERS <= 1
+#error "Please, review the 'Number of thread local storage pointers' settings in kconfig. Must be >= 2."
+#endif
+
+#define THREAD_LOCAL_STORAGE_POINTER_ID (CONFIG_FREERTOS_THREAD_LOCAL_STORAGE_POINTERS - 1)
 
 #endif

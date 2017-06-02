@@ -326,8 +326,9 @@ static int os_version(lua_State *L) {
    lua_pushstring(L, "Lua RTOS");
    lua_pushstring(L, LUA_OS_VER);   
    lua_pushinteger(L, BUILD_TIME);
+   lua_pushstring(L, BUILD_COMMIT);
    
-   return 3;
+   return 4;
 }
 
 static int os_cpu(lua_State *L) {
@@ -522,7 +523,7 @@ static int os_run (lua_State *L) {
     lua_pop(L, 1);
 
     // Lock tty, avoid other threads to write to console
-    uart_lock(CONSOLE_UART);
+    uart_ll_lock(CONSOLE_UART);
 
     // Clear received buffer
     uart_consume(CONSOLE_UART);
@@ -580,7 +581,7 @@ skip:
     lua_getglobal(L, "load"); 
     lua_pushstring(L, (const char *)code);
 
-    status = lua_pcall(L, 1, 2, NULL);
+    status = lua_pcall(L, 1, 2, 0);
     if (status != LUA_OK) {
         if (code && from_uart) free(code);
         return luaL_error(L, lua_tostring(L, -1));
@@ -594,7 +595,7 @@ skip:
     lua_remove(L, -2);   // Remove "thread" from the stack
     lua_insert(L, -2);   // Switch "thread" with parsed function
     
-    status = lua_pcall(L, 1, 1, NULL);
+    status = lua_pcall(L, 1, 1, 0);
     if (status != LUA_OK) {
         if (code && from_uart) free(code);
         return luaL_error(L, lua_tostring(L, -1));
