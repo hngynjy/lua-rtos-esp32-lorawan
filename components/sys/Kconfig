@@ -56,6 +56,10 @@ menu "Lua RTOS"
 
       config LUA_RTOS_BOARD_OTHER
          bool "GENERIC"
+
+      config LUA_RTOS_BOARD_TTGO_LORA32V20
+         bool "TTGO LORA32 V2.0"
+
    endchoice
 
    config LUA_RTOS_BOARD_SUBTYPE
@@ -783,6 +787,10 @@ menu "Lua RTOS"
             
                 config LUA_RTOS_LORA_BAND_US915
                     bool "United States - 915 Mhz"
+
+                config LUA_RTOS_LORA_BAND_AS923
+                    bool "Asia AS923-925 (AS2)"
+                    
             endchoice
 
             config LUA_RTOS_LORA_SPI
