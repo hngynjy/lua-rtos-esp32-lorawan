@@ -174,7 +174,7 @@ driver_error_t *ssd1306_init(uint8_t chip, uint8_t orient, uint8_t address) {
 	if ((error = ssd1306_command(caps->device, SSD1306_SETPRECHARGE))) goto i2c_error;                   // 0xd9
 	if ((error = ssd1306_command(caps->device, 0xF1))) goto i2c_error;
 	if ((error = ssd1306_command(caps->device, SSD1306_SETVCOMDETECT))) goto i2c_error;                  // 0xDB
-	if ((error = ssd1306_command(caps->device, 0x40))) goto i2c_error;
+	if ((error = ssd1306_command(caps->device, 0x30))) goto i2c_error;
 	if ((error = ssd1306_command(caps->device, SSD1306_DISPLAYALLON_RESUME))) goto i2c_error;            // 0xA4
 	if ((error = ssd1306_command(caps->device, SSD1306_NORMALDISPLAY))) goto i2c_error;                  // 0xA6
 
@@ -224,6 +224,21 @@ void ssd1306_update(int x0, int y0, int x1, int y1, uint8_t *buffer) {
 	gdisplay_caps_t *caps = gdisplay_ll_get_caps();
 	driver_error_t *error;
 
+	if ((error = ssd1306_command(caps->device, SSD1306_COLUMNADDR))) goto i2c_error;
+	if ((error = ssd1306_command(caps->device, 0))) goto i2c_error;  			    // Column start address (0 = reset)
+	if ((error = ssd1306_command(caps->device, caps->phys_width -1))) goto i2c_error;    // Column end address   (127 = reset)
+
+	if ((error = ssd1306_command(caps->device, SSD1306_PAGEADDR))) goto i2c_error;
+	if ((error = ssd1306_command(caps->device, 0))) goto i2c_error; // Page start address (0 = reset)
+
+	if (caps->phys_height == 64) {
+		ssd1306_command(caps->device, 7); // Page end address
+	} else if (caps->phys_height == 32) {
+		ssd1306_command(caps->device, 3); // Page end address
+	} else if (caps->phys_height == 16) {
+		ssd1306_command(caps->device, 1); // Page end address
+	}
+	
 	int transaction = I2C_TRANSACTION_INITIALIZER;
 	uint8_t buff[1] = {0x40};
 
