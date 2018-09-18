@@ -186,6 +186,18 @@
 
 
 
+//-----------------------------------------
+// Parameters for RSSI monitoring
+#define SX127X_FREQ_LF_MAX      525000000       // per datasheet 6.3
+ 
+// per datasheet 5.5.3:
+#define SX127X_RSSI_ADJUST_LF   -164            // add to rssi value to get dB (LF)
+#define SX127X_RSSI_ADJUST_HF   -157            // add to rssi value to get dB (HF)
+
+// per datasheet 2.5.2 (but note that we ought to ask Semtech to confirm, because
+// datasheet is unclear).
+#define SX127X_RX_POWER_UP      us2osticks(500) // delay this long to let the receiver power up.
+
 // ----------------------------------------
 // Constants for radio registers
 #define OPMODE_LORA      0x80
@@ -282,7 +294,7 @@ static u1_t IRAM_ATTR readReg (u1_t addr) {
     return val;
 }
 
-static void writeBuf (u1_t addr, xref2u1_t buf, u1_t len) {
+static void IRAM_ATTR writeBuf (u1_t addr, xref2u1_t buf, u1_t len) {
     hal_pin_nss(0);
     hal_spi(addr | 0x80);
     for (u1_t i=0; i<len; i++) {
@@ -388,6 +400,13 @@ static void configLoraModem () {
 
         // set ModemConfig2 (sf, AgcAutoOn=1 SymbTimeoutHi=00)
         writeReg(LORARegModemConfig2, (SX1272_MC2_SF7 + ((sf-1)<<4)) | 0x04);
+
+#if CFG_TxContinuousMode
+        // Only for testing
+        // set ModemConfig2 (sf, TxContinuousMode=1, AgcAutoOn=1 SymbTimeoutHi=00)
+        writeReg(LORARegModemConfig2, (SX1272_MC2_SF7 + ((sf-1)<<4)) | 0x06);
+#endif
+
 #else
 #error Missing CFG_sx1272_radio/CFG_sx1276_radio
 #endif /* CFG_sx1272_radio */
@@ -405,15 +424,19 @@ static void configChannel () {
 
 static void configPower () {
 #ifdef CFG_sx1276_radio
-    // no boost used for now
+    // PA_BOOST output is assumed but not 20 dBm.
     s1_t pw = (s1_t)LMIC.txpow;
-    if(pw >= 17) {
-        pw = 15;
+    if(pw > 17) {
+        pw = 17;
     } else if(pw < 2) {
         pw = 2;
     }
-    // check board type for BOOST pin
-    writeReg(RegPaConfig, (u1_t)(0x80|(pw&0xf)));
+    // 0x80 forces use of PA_BOOST; but we don't 
+    //    turn on 20 dBm mode. So powers are:
+    //    0000 => 2dBm, 0001 => 3dBm, ... 1111 => 17dBm
+    // But we also enforce that the high-power mode
+    //    is off by writing RegPaDac.
+    writeReg(RegPaConfig, (u1_t)(0x80|(pw - 2)));
     writeReg(RegPaDac, readReg(RegPaDac)|0x4);
 
 #elif CFG_sx1272_radio
@@ -516,7 +539,7 @@ static void txlora () {
     u1_t bw = getBw(LMIC.rps);
     u1_t cr = getCr(LMIC.rps);
     syslog(LOG_DEBUG, "%lu: TXMODE, freq=%lu, len=%d, SF=%d, BW=%d, CR=4/%d, IH=%d\n",
-    		(u4_t)os_getTime(), LMIC.freq, LMIC.dataLen, sf,
+            (u4_t)os_getTime(), LMIC.freq, LMIC.dataLen, sf,
            bw == BW125 ? 125 : (bw == BW250 ? 250 : 500),
            cr == CR_4_5 ? 5 : (cr == CR_4_6 ? 6 : (cr == CR_4_7 ? 7 : 8)),
            getIh(LMIC.rps)
@@ -525,7 +548,31 @@ static void txlora () {
 
 // start transmitter (buf=LMIC.frame, len=LMIC.dataLen)
 static void starttx () {
-    LMIC_ASSERT( (readReg(RegOpMode) & OPMODE_MASK) == OPMODE_SLEEP );
+    u1_t const rOpMode = readReg(RegOpMode);
+
+    // originally, this code LMIC_ASSERT()ed, but asserts are both bad and
+    // blunt instruments. If we see that we're not in sleep mode,
+    // force sleep (because we might have to switch modes)
+    if ((rOpMode & OPMODE_MASK) != OPMODE_SLEEP) {
+         syslog(LOG_DEBUG, "?%s: OPMODE != OPMODE_SLEEP: %#02x\n", __func__, rOpMode);
+
+        opmode(OPMODE_SLEEP);
+        hal_waitUntil(os_getTime() + ms2osticks(1));
+    }
+
+    if (LMIC.lbt_ticks > 0) {
+        oslmic_radio_rssi_t rssi;
+        radio_monitor_rssi(LMIC.lbt_ticks, &rssi);
+
+    syslog(LOG_DEBUG, "LBT rssi max:min=%d:%d %d times in %d\n", rssi.max_rssi, rssi.min_rssi, rssi.n_rssi, LMIC.lbt_ticks);
+
+        if (rssi.max_rssi >= LMIC.lbt_dbmax) {
+            // complete the request by scheduling the job
+            os_setCallback(&LMIC.osjob, LMIC.osjob.func);
+            return;
+        }
+    }
+
     if(getSf(LMIC.rps) == FSK) { // FSK modem
         txfsk();
     } else { // LoRa modem
@@ -566,7 +613,13 @@ static void rxlora (u1_t rxmode) {
     writeReg(LORARegPayloadMaxLength, 64);
 #if !defined(DISABLE_INVERT_IQ_ON_RX)
     // use inverted I/Q signal (prevent mote-to-mote communication)
-    writeReg(LORARegInvertIQ, readReg(LORARegInvertIQ)|(1<<6));
+
+    // XXX: use flag to switch on/off inversion
+    if (LMIC.noRXIQinversion) {
+        writeReg(LORARegInvertIQ, readReg(LORARegInvertIQ) & ~(1<<6));
+    } else {
+        writeReg(LORARegInvertIQ, readReg(LORARegInvertIQ)|(1<<6));
+    }
 #endif
     // set symbol timeout (for single rx)
     writeReg(LORARegSymbTimeoutLsb, LMIC.rxsyms);
@@ -587,9 +640,14 @@ static void rxlora (u1_t rxmode) {
     if (rxmode == RXMODE_SINGLE) { // single rx
         hal_waitUntil(LMIC.rxtime); // busy wait until exact rx time
         opmode(OPMODE_RX_SINGLE);
+
+    ostime_t now = os_getTime();
+    syslog(LOG_DEBUG, "start single rx: now-rxtime: %lu\n", (u4_t)(now - LMIC.rxtime));
+
     } else { // continous rx (scan or rssi)
         opmode(OPMODE_RX);
     }
+
 
     if (rxmode == RXMODE_RSSI) {
         syslog(LOG_DEBUG, "%lu: RXMODE_RSSI\n", (u4_t)os_getTime());
@@ -606,6 +664,7 @@ static void rxlora (u1_t rxmode) {
                getIh(LMIC.rps)
        );
     }
+
 }
 
 static void rxfsk (u1_t rxmode) {
@@ -686,17 +745,17 @@ int radio_init () {
 
     opmode(OPMODE_SLEEP);
 
-    // some sanity checks, e.g., read version number
+   // some sanity checks, e.g., read version number
     u1_t v = readReg(RegVersion);
 #ifdef CFG_sx1276_radio
     if (v != 0x12 ) {
-    	hal_enableIRQs();
-    	return -1;
+        hal_enableIRQs();
+        return -1;
     }
 #elif CFG_sx1272_radio
     if (v != 0x22) {
-    	hal_enableIRQs();
-    	return -1;
+        hal_enableIRQs();
+        return -1;
     }
 #else
 #error Missing CFG_sx1272_radio/CFG_sx1276_radio
@@ -735,7 +794,7 @@ int radio_init () {
     opmode(OPMODE_SLEEP);
 
     hal_enableIRQs();
-
+    
     return 0;
 }
 
@@ -760,6 +819,82 @@ u1_t radio_rssi () {
     return r;
 }
 
+// monitor rssi for specified number of ostime_t ticks, and return statistics
+// This puts the radio into RX continuous mode, waits long enough for the
+// oscillators to start and the PLL to lock, and then measures for the specified
+// period of time.  The radio is then returned to idle.
+//
+// RSSI returned is expressed in units of dB, and is offset according to the
+// current radio setting per section 5.5.5 of Semtech 1276 datasheet.
+void radio_monitor_rssi(ostime_t nTicks, oslmic_radio_rssi_t *pRssi) {
+    uint8_t rssiMax, rssiMin;
+    uint16_t rssiSum;
+    uint16_t rssiN;
+
+    int rssiAdjust;
+    ostime_t tBegin;
+    int notDone;
+
+    rxlora(RXMODE_SCAN);
+
+    // while we're waiting for the PLLs to spin up, determine which
+    // band we're in and choose the base RSSI.
+    if (LMIC.freq > SX127X_FREQ_LF_MAX) {
+            rssiAdjust = SX127X_RSSI_ADJUST_HF;
+    } else {
+            rssiAdjust = SX127X_RSSI_ADJUST_LF;
+    }
+    rssiAdjust += hal_getRssiCal();
+
+    // zero the results
+    rssiMax = 255;
+    rssiMin = 0;
+    rssiSum = 0;
+    rssiN = 0;
+
+    // wait for PLLs
+    hal_waitUntil(os_getTime() + SX127X_RX_POWER_UP);
+
+    // scan for the desired time.
+    tBegin = os_getTime();
+    rssiMax = 0;
+
+    /* XXX(tanupoo)
+     * In this loop, micros() in os_getTime() returns a past time sometimes.
+     * At least, it happens on Dragino LoRa Mini.
+     * the return value of micros() looks not to be stable in IRQ disabled.
+     * Once it happens, this loop never exit infinitely.
+     * In order to prevent it, it enables IRQ before calling os_getTime(),
+     * disable IRQ again after that.
+     */
+    do {
+        ostime_t now;
+
+        u1_t rssiNow = readReg(LORARegRssiValue);
+
+        if (rssiMax < rssiNow)
+                rssiMax = rssiNow;
+        if (rssiNow < rssiMin)
+                rssiMin = rssiNow;
+        rssiSum += rssiNow;
+        ++rssiN;
+    // TODO(tmm@mcci.com) move this to os_getTime().
+        hal_enableIRQs();
+        now = os_getTime();
+        hal_disableIRQs();
+        notDone = now - (tBegin + nTicks) < 0;
+    } while (notDone);
+
+    // put radio back to sleep
+    opmode(OPMODE_SLEEP);
+
+    // compute the results
+    pRssi->max_rssi = (s2_t) (rssiMax + rssiAdjust);
+    pRssi->min_rssi = (s2_t) (rssiMin + rssiAdjust);
+    pRssi->mean_rssi = (s2_t) (rssiAdjust + ((rssiSum + (rssiN >> 1)) / rssiN));
+    pRssi->n_rssi = rssiN;
+}
+
 static CONST_TABLE(u2_t, LORA_RXDONE_FIXUP)[] = {
     [FSK]  =     us2osticks(0), // (   0 ticks)
     [SF7]  =     us2osticks(0), // (   0 ticks)
@@ -773,9 +908,23 @@ static CONST_TABLE(u2_t, LORA_RXDONE_FIXUP)[] = {
 // called by hal ext IRQ handler
 // (radio goes to stanby mode after tx/rx operations)
 void radio_irq_handler (u1_t dio) {
+#if CFG_TxContinuousMode
+    // clear radio IRQ flags
+    writeReg(LORARegIrqFlags, 0xFF);
+    u1_t p = readReg(LORARegFifoAddrPtr);
+    writeReg(LORARegFifoAddrPtr, 0x00);
+    u1_t s = readReg(RegOpMode);
+    u1_t c = readReg(LORARegModemConfig2);
+    opmode(OPMODE_TX);
+    return;
+#else /* ! CFG_TxContinuousMode */
     ostime_t now = os_getTime();
+
+    ostime_t const entry = now;
+
     if( (readReg(RegOpMode) & OPMODE_LORA) != 0) { // LORA modem
         u1_t flags = readReg(LORARegIrqFlags);
+        syslog(LOG_DEBUG, "IRQ=%02x\n", flags);
         if( flags & IRQ_LORA_TXDONE_MASK ) {
             // save exact tx time
             LMIC.txend = now - us2osticks(43); // TXDONE FIXUP
@@ -794,10 +943,16 @@ void radio_irq_handler (u1_t dio) {
             readBuf(RegFifo, LMIC.frame, LMIC.dataLen);
             // read rx quality parameters
             LMIC.snr  = readReg(LORARegPktSnrValue); // SNR [dB] * 4
-            LMIC.rssi = readReg(LORARegPktRssiValue) - 125 + 64; // RSSI [dBm] (-196...+63)
+            LMIC.rssi = readReg(LORARegPktRssiValue);
+            syslog(LOG_DEBUG, "RX snr=%u rssi=%d\n", LMIC.snr/4, SX127X_RSSI_ADJUST_HF + LMIC.rssi);
+            LMIC.rssi = LMIC.rssi - 125 + 64; // RSSI [dBm] (-196...+63)
         } else if( flags & IRQ_LORA_RXTOUT_MASK ) {
             // indicate timeout
             LMIC.dataLen = 0;
+
+        ostime_t now2 = os_getTime();
+        syslog(LOG_DEBUG, "rxtimeout: entry: %lu rxtime: %lu entry-rxtime: %lu now-entry: %lu rxtime-txend: %lu\n", entry, LMIC.rxtime, entry - LMIC.rxtime, now2 - entry, LMIC.rxtime-LMIC.txend);
+
         }
         // mask all radio IRQs
         writeReg(LORARegIrqFlagsMask, 0xFF);
@@ -830,6 +985,7 @@ void radio_irq_handler (u1_t dio) {
     opmode(OPMODE_SLEEP);
     // run os job (use preset func ptr)
     os_setCallback(&LMIC.osjob, LMIC.osjob.func);
+#endif /* ! CFG_TxContinuousMode */
 }
 
 void os_radio (u1_t mode) {
@@ -857,5 +1013,6 @@ void os_radio (u1_t mode) {
     }
     hal_enableIRQs();
 }
+
 
 #endif

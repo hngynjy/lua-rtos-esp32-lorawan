@@ -102,11 +102,21 @@ static struct sockaddr_in up_address;
 static uint8_t sf_idx    = 0;
 static uint8_t freq_idx  = 0;
 static uint8_t sf[]      = { 7, 8, 9, 10, 11, 12 };
+	
+#if CONFIG_LUA_RTOS_LORA_BAND_EU868
 static uint32_t freq[]   = { 868100000, 868300000, 868500000, 867100000, 867300000, 867500000, 867700000, 867900000, 868800000 };
+#endif
+
+#if CONFIG_LUA_RTOS_LORA_BAND_AS923
+static uint32_t freq[]   = { 923200000, 923400000, 923600000, 923800000, 924000000, 924200000, 924400000, 924600000, 924800000 };
+#endif
 
 static uint8_t gw_eui[8];     // Gateway EUI
 
 static int up_socket;
+
+// Callback function to call when data is received
+static lora_gw_rx *lora_gw_rx_callback = NULL;
 
 /*
  	 This is the ISR function attached to the PHY DIO pins.
@@ -171,7 +181,7 @@ static void phy_task(void *arg) {
             }
 
             // Read packet rssi
-            stx1276_read_reg(spi_device, 0x1A, &data);
+            stx1276_read_reg(spi_device, SX1276_REG_PKT_RSSI_VALUE, &data);
             lora_data.rssi = -137 + data;
 
             // Read payload
@@ -206,9 +216,9 @@ static void phy_task(void *arg) {
 static void ttn_up_task(void *arg) {
 	driver_error_t *error;
 	lora_data_t lora_data;
-    char json_rxpk[512];
+    char json_rxpk[256];
     char b64_payload[350];
-    uint8_t buffer[12 + 512];
+    uint8_t buffer[12 + 256];
 
 	for(;;) {
         xQueueReceive(lora_data_queue, &lora_data, portMAX_DELAY);
@@ -219,6 +229,8 @@ static void ttn_up_task(void *arg) {
 		stm = _localtime(&t, &tmr);
 
 		bin_to_b64(lora_data.payload, lora_data.size, b64_payload, sizeof(b64_payload));
+
+		syslog(LOG_INFO, "Packet RSSI = %d", lora_data.rssi);
 
 		sprintf(
 			json_rxpk,
@@ -276,6 +288,9 @@ static void ttn_up_task(void *arg) {
 	    }
 
 		sendto(up_socket, buffer, strlen((char *)&buffer[12]) + 12, 0, (struct sockaddr *)&up_address, slen);
+
+		if (lora_gw_rx_callback)
+			lora_gw_rx_callback((char *)json_rxpk);
 	}
 }
 
@@ -289,8 +304,8 @@ static void ttn_timer_task(void *arg) {
     uint8_t dwnb = 0;
     uint8_t txnb = 0;
 
-    char json_stat[512];
-    uint8_t buffer[12 + 512];
+    char json_stat[256];
+    uint8_t buffer[12 + 256];
 
     int len;
 
@@ -354,6 +369,8 @@ static void ttn_timer_task(void *arg) {
 		if (sendto(up_socket, buffer, strlen((char *)&buffer[12]) + 12, 0, (struct sockaddr *)&up_address, slen) <= 0) {
 			syslog(LOG_ERR, "lora gw: can't send\n");
 		}
+		else if (lora_gw_rx_callback)
+				lora_gw_rx_callback((char *)json_stat);
 
 		memset(buffer, 0, sizeof(buffer));
 
@@ -423,9 +440,12 @@ driver_error_t *lora_gw_lock_resources(int unit) {
 }
 #endif
 
-driver_error_t *lora_gw_setup(int band, const char *host, int port) {
+driver_error_t *lora_gw_setup(int band, const char *host, int port, int _freq_idx, int _sf_idx) {
 	driver_error_t *error;
 	uint8_t mac[6];        // Mac address
+
+	sf_idx = _sf_idx;
+	freq_idx = _freq_idx;
 
 	syslog(LOG_INFO, "lora gw: starting");
 
@@ -656,4 +676,8 @@ void lora_gw_unsetup() {
 	}
 }
 
+void lora_gw_set_rx_callback(lora_gw_rx *callback) {
+	
+    lora_gw_rx_callback = callback;
+}
 #endif

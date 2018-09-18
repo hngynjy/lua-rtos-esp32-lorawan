@@ -162,9 +162,9 @@ driver_error_t *hal_init (void) {
     }
 #endif
 
-	syslog(LOG_INFO, "lmic is at spi%d, pin cs=%s%d", CONFIG_LUA_RTOS_LORA_SPI,
-        gpio_portname(CONFIG_LUA_RTOS_LORA_CS), gpio_name(CONFIG_LUA_RTOS_LORA_CS)
-	);
+	syslog(LOG_INFO, "lmic is at spi%d", CONFIG_LUA_RTOS_LORA_SPI);
+
+	syslog(LOG_INFO, "pin cs=%s%d", gpio_portname(CONFIG_LUA_RTOS_LORA_CS), gpio_name(CONFIG_LUA_RTOS_LORA_CS));
 
 	#if ((CONFIG_LUA_RTOS_POWER_BUS_PIN == -1) && (CONFIG_LUA_RTOS_LORA_RST >= 0))
 		// Init RESET pin
@@ -179,6 +179,7 @@ driver_error_t *hal_init (void) {
 
 	// Init DIO pins
 	#if CONFIG_LUA_RTOS_LORA_DIO0 >= 0
+		syslog(LOG_INFO, "pin DIO0=%s%d", gpio_portname(CONFIG_LUA_RTOS_LORA_DIO0), gpio_name(CONFIG_LUA_RTOS_LORA_DIO0));
 		if ((error = gpio_isr_attach(CONFIG_LUA_RTOS_LORA_DIO0, dio_intr_handler, GPIO_INTR_POSEDGE, (void*)0))) {
 			error->msg = "DIO0";
 			return error;
@@ -186,6 +187,7 @@ driver_error_t *hal_init (void) {
 	#endif
 
 	#if CONFIG_LUA_RTOS_LORA_DIO1 >= 0
+		syslog(LOG_INFO, "pin DIO1=%s%d", gpio_portname(CONFIG_LUA_RTOS_LORA_DIO1), gpio_name(CONFIG_LUA_RTOS_LORA_DIO1));
 		if ((error = gpio_isr_attach(CONFIG_LUA_RTOS_LORA_DIO1, dio_intr_handler, GPIO_INTR_POSEDGE, (void*)1))) {
 			error->msg = "DIO1";
 			return error;
@@ -193,11 +195,14 @@ driver_error_t *hal_init (void) {
 	#endif
 
 	#if CONFIG_LUA_RTOS_LORA_DIO2 >= 0
+		syslog(LOG_INFO, "pin DIO2=%s%d", gpio_portname(CONFIG_LUA_RTOS_LORA_DIO2), gpio_name(CONFIG_LUA_RTOS_LORA_DIO2));
 		if ((error = gpio_isr_attach(CONFIG_LUA_RTOS_LORA_DIO2, dio_intr_handler, GPIO_INTR_POSEDGE, (void*)2))) {
 			error->msg = "DIO2";
 			return error;
 		}
 	#endif
+
+	syslog(LOG_INFO, "\n");
 
 	lmicSleepEvent = xQueueCreate(1, sizeof(uint32_t));
 	lmicCommand = xQueueCreate(1, sizeof(lmic_command_t));
@@ -260,6 +265,9 @@ void hal_pin_rst (u1_t val) {
 	#endif
 }
 
+s1_t hal_getRssiCal (void) {
+    return 0;	//plmic_pins->rssi_cal;
+}
 /*
  * perform 8-bit SPI transaction with radio.
  *   - write given byte 'outval'

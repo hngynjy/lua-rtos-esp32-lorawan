@@ -58,9 +58,12 @@
 #include <drivers/spi.h>
 #include <drivers/gpio.h>
 
-driver_error_t *lora_gw_setup(int band, const char *host, int port);
+typedef void (lora_gw_rx)(char *payload);
+
+driver_error_t *lora_gw_setup(int band, const char *host, int port, int _freq_idx, int _sf_idx);
 void lora_gw_unsetup();
 
+void lora_gw_set_rx_callback(lora_gw_rx *callback);
 #endif
 
 #endif

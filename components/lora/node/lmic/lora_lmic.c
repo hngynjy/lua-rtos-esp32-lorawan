@@ -116,7 +116,7 @@ static u1_t setup = 0;
 static lora_rx *lora_rx_callback = NULL;
 
 // Table for translate numeric datarates to LMIC definitions
-#if CONFIG_LUA_RTOS_LORA_BAND_EU868
+#if CONFIG_LUA_RTOS_LORA_BAND_EU868 || CONFIG_LUA_RTOS_LORA_BAND_AS923
 static const u1_t data_rates[] = {
 	DR_SF12, DR_SF11, DR_SF10, DR_SF9, DR_SF8, DR_SF7, DR_SF7B, DR_FSK, DR_NONE,
 	DR_NONE, DR_NONE, DR_NONE, DR_NONE, DR_NONE, DR_NONE, DR_NONE
@@ -138,8 +138,55 @@ static u1_t current_dr = 0;
 // ADR active?
 static u1_t adr = 0;
 
+static const char* evnames[] = {
+  "SCAN_TIMEOUT",
+  "BEACON_FOUND",
+  "BEACON_MISSED",
+  "BEACON_TRACKED",
+  "JOINING",
+  "JOINED",
+  "RFU1",
+  "JOIN_FAILED",
+  "REJOIN_FAILED",
+  "TXCOMPLETE",
+  "LOST_TSYNC",
+  "RESET",
+  "RXCOMPLETE",
+  "LINK_DEAD",
+  "LINK_ALIVE",
+  "SCAN_FOUND",
+  "TXSTART",
+};
+
+#define lora_must_join() \
+    ( \
+		(DEVADDR == 0) && \
+		(memcmp(APPSKEY, (u1_t[]){0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, 16) == 0) && \
+		(memcmp(APPSKEY, (u1_t[]){0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, 16) == 0) \
+	)
+
+#define lora_can_participate_otaa() \
+	( \
+		(memcmp(APPEUI,  (u1_t[]){0,0,0,0,0,0,0,0}, 8) != 0) && \
+		(memcmp(DEVEUI, (u1_t[]){0,0,0,0,0,0,0,0}, 8) != 0) && \
+		(memcmp(APPKEY, (u1_t[]){0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, 16) != 0) \
+	)
+
+#define lora_can_participate_abp() \
+	( \
+		(DEVADDR != 0) && \
+		(memcmp(APPSKEY, (u1_t[]){0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, 16) != 0) && \
+		(memcmp(APPSKEY, (u1_t[]){0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, 16) != 0) \
+	)
+
+void event_Msg_Debug (ev_t ev) {
+	syslog(LOG_DEBUG, "EV_%s", ((ev <= sizeof(evnames) / sizeof(evnames[0])) ? evnames[ev-1] : "UNKNOWN" ));
+}
+
 // LMIC event handler
 void onEvent (ev_t ev) {
+	event_Msg_Debug(ev);
+
     switch(ev) {
 	    case EV_SCAN_TIMEOUT:
 	      break;
@@ -180,13 +227,14 @@ void onEvent (ev_t ev) {
 	    case EV_TXCOMPLETE:
 		  if (LMIC.pendTxConf) {
 			  if (LMIC.txrxFlags & TXRX_ACK) {
-		  		  xEventGroupSetBits(loraEvent, evLORA_TX_COMPLETE);
+		  		  //xEventGroupSetBits(loraEvent, evLORA_TX_COMPLETE);
 			  }
 
 			  if (LMIC.txrxFlags & TXRX_NACK) {
 		  		  xEventGroupSetBits(loraEvent, evLORA_ACK_NOT_RECEIVED);
 			  }
-		  } else {
+		  }
+		  //else {
 		      if (LMIC.dataLen && lora_rx_callback) {
 				  // Make a copy of the payload and call callback function
 				  u1_t *payload = (u1_t *)malloc(LMIC.dataLen * 2 + 1);
@@ -195,12 +243,12 @@ void onEvent (ev_t ev) {
 					  val_to_hex_string((char *)payload, (char *)&LMIC.frame[LMIC.dataBeg], LMIC.dataLen, 0);
 					  payload[LMIC.dataLen * 2] = 0x00;
 
-					  lora_rx_callback(1, (char *)payload);
+					  lora_rx_callback(LMIC.frame[LMIC.dataBeg - 1], (char *)payload);
 				  }
 		      }
 
 		      xEventGroupSetBits(loraEvent, evLORA_TX_COMPLETE);
-		  }
+		  //}
 
 	      break;
 
@@ -219,6 +267,12 @@ void onEvent (ev_t ev) {
 	    case EV_LINK_ALIVE:
 	      break;
 
+	    case EV_SCAN_FOUND:
+	      break;
+
+	    case EV_TXSTART:
+	      break;
+
 	    default:
 	      break;
   	}
@@ -228,6 +282,10 @@ void onEvent (ev_t ev) {
 static void lora_init(osjob_t *j) {
     // Reset MAC state
     LMIC_reset();
+
+	#if CONFIG_LUA_RTOS_LORA_BAND_AS923
+		LMIC_setClockError(MAX_CLOCK_ERROR * 1 / 100);
+	#endif
 
 	#if CONFIG_LUA_RTOS_LORA_BAND_EU868
     	LMIC_setupChannel(0, 868100000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);
@@ -240,7 +298,7 @@ static void lora_init(osjob_t *j) {
 	    LMIC_setupChannel(7, 867900000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);
 	    LMIC_setupChannel(8, 868800000, DR_RANGE_MAP(DR_FSK,  DR_FSK),  BAND_MILLI);	
 	#endif
-
+	
 	#if CONFIG_LUA_RTOS_LORA_BAND_US915
 	    LMIC_selectSubBand(1);
 	#endif
@@ -262,31 +320,18 @@ static void lora_init(osjob_t *j) {
     xEventGroupSetBits(loraEvent, evLORA_INITED);
 }
 
-#define lora_must_join() \
-    ( \
-		(DEVADDR == 0) && \
-		(memcmp(APPSKEY, (u1_t[]){0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, 16) == 0) && \
-		(memcmp(APPSKEY, (u1_t[]){0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, 16) == 0) \
-	)
 
-#define lora_can_participate_otaa() \
-	( \
-		(memcmp(APPEUI,  (u1_t[]){0,0,0,0,0,0,0,0}, 8) != 0) && \
-		(memcmp(DEVEUI, (u1_t[]){0,0,0,0,0,0,0,0}, 8) != 0) && \
-		(memcmp(APPKEY, (u1_t[]){0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, 16) != 0) \
-	)
-
-#define lora_can_participate_abp() \
-	( \
-		(DEVADDR != 0) && \
-		(memcmp(APPSKEY, (u1_t[]){0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, 16) != 0) && \
-		(memcmp(APPSKEY, (u1_t[]){0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, 16) != 0) \
-	)
 
 // Setup driver
 driver_error_t *lora_setup(int band) {
-	#if CONFIG_LUA_RTOS_LORA_BAND_EU868
+	#if CONFIG_LUA_RTOS_LORA_BAND_EU868 
 	if (band != 868) {
+		return driver_error(LORA_DRIVER, LORA_ERR_INVALID_BAND, NULL);
+	}
+	#endif
+
+	#if  CONFIG_LUA_RTOS_LORA_BAND_AS923
+	if (band != 923) {
 		return driver_error(LORA_DRIVER, LORA_ERR_INVALID_BAND, NULL);
 	}
 	#endif
@@ -425,6 +470,38 @@ driver_error_t *lora_mac_get(const char command, char **value) {
 
 	switch(command) {
 		case LORA_MAC_GET_DEVADDR:
+			result = (char *)malloc(9);
+
+			// DEVEUI is in little-endian format
+			val_to_hex_string(result, (char *)(&LMIC.devaddr), 4, 1);
+			break;
+
+		case LORA_MAC_GET_NWKSKEY:
+			result = (char *)malloc(33);
+
+			// NWKSKEY is in big-endian format
+			val_to_hex_string(result, (char *)(&LMIC.nwkKey), 16, 0);
+			break;
+
+		case LORA_MAC_GET_APPSKEY:
+			result = (char *)malloc(33);
+
+			// APPSKEY is in big-endian format
+			val_to_hex_string(result, (char *)(&LMIC.artKey), 16, 0);
+			break;
+
+		case LORA_MAC_GET_FCNTUP:
+			result = (char *)malloc(11);
+			if (result) {
+				sprintf(result,"%d",LMIC.seqnoUp);
+			}
+			break;
+
+		case LORA_MAC_GET_FCNTDN:
+			result = (char *)malloc(11);
+			if (result) {
+				sprintf(result,"%d",LMIC.seqnoDn);
+			}
 			break;
 		
 		case LORA_MAC_GET_DEVEUI:

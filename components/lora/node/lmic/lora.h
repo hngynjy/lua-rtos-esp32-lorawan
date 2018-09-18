@@ -77,6 +77,11 @@ extern const int lora_error_map;
 #define LORA_MAC_GET_LINKCHK       25
 #define LORA_MAC_GET_RETX		   26
 
+#define LORA_MAC_GET_NWKSKEY		30
+#define LORA_MAC_GET_APPSKEY		31
+#define LORA_MAC_GET_FCNTUP			32
+#define LORA_MAC_GET_FCNTDN			33
+
 typedef void (lora_rx)(int port, char *payload);
 
 driver_error_t *lora_setup(int band);
