@@ -251,5 +251,16 @@
 		"filesystem": "default",
 		"usb_vid_pid": "",
 		"usb_port_exp": ""
+	},
+	{
+		"id": "M5STACK",
+		"description": "M5STACK",
+		"manufacturer": "M5STACK",
+		"brand": "M5STACK",
+		"type": "ESP32",
+		"subtype": "",
+		"filesystem": "m5stack",
+		"usb_vid_pid": "",
+		"usb_port_exp": ""
 	}
 ]

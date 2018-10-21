@@ -180,7 +180,7 @@ static const char* evnames[] = {
 	)
 
 void event_Msg_Debug (ev_t ev) {
-	syslog(LOG_DEBUG, "EV_%s", ((ev <= sizeof(evnames) / sizeof(evnames[0])) ? evnames[ev-1] : "UNKNOWN" ));
+	syslog(LOG_INFO, "EV_%s", ((ev <= sizeof(evnames) / sizeof(evnames[0])) ? evnames[ev-1] : "UNKNOWN" ));
 }
 
 // LMIC event handler

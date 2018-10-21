@@ -9,7 +9,7 @@
 
 thread.start(function()
 	-- Led is connected to this GPIO
-	led_pwm_gpio = pio.GPIO25
+	led_pwm_gpio = pio.GPIO26
 
 	-- Setup pwm at 10 Khz, initial duty is 0
 	led = pwm.attach(led_pwm_gpio, 10000, 0)

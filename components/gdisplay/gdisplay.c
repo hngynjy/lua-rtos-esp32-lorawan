@@ -547,9 +547,13 @@ driver_error_t *gdisplay_on() {
 	gdisplay_ll_on();
 
 #if CONFIG_LUA_RTOS_GDISPLAY_BACKLIGHT >= 0
+#if CONFIG_LUA_RTOS_BOARD_M5STACK
+	gpio_pin_set(CONFIG_LUA_RTOS_GDISPLAY_BACKLIGHT);
+#else
 	gpio_pin_clr(CONFIG_LUA_RTOS_GDISPLAY_BACKLIGHT);
 #endif
-
+#endif
+	
 	return NULL;
 }
 
@@ -562,7 +566,11 @@ driver_error_t *gdisplay_off() {
 	gdisplay_ll_off();
 
 #if CONFIG_LUA_RTOS_GDISPLAY_BACKLIGHT >= 0
+#if CONFIG_LUA_RTOS_BOARD_M5STACK
+	gpio_pin_clr(CONFIG_LUA_RTOS_GDISPLAY_BACKLIGHT);
+#else
 	gpio_pin_set(CONFIG_LUA_RTOS_GDISPLAY_BACKLIGHT);
+#endif
 #endif
 
 	return NULL;

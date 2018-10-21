@@ -60,6 +60,9 @@ menu "Lua RTOS"
       config LUA_RTOS_BOARD_TTGO_LORA32V20
          bool "TTGO LORA32 V2.0"
 
+      config LUA_RTOS_BOARD_M5STACK
+         bool "M5STACK"
+
    endchoice
 
    config LUA_RTOS_BOARD_SUBTYPE

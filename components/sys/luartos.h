@@ -96,7 +96,12 @@
 #endif
 
 #if CONFIG_LUA_RTOS_BOARD_TTGO_LORA32V20
-#define LUA_RTOS_BOARD "TTGO-LORA32-V2.0"
+//#define LUA_RTOS_BOARD "TTGO-LORA32-V2.0"
+#define LUA_RTOS_BOARD "GENERIC"
+#endif
+
+#if CONFIG_LUA_RTOS_BOARD_M5STACK
+#define LUA_RTOS_BOARD "M5STACK"
 #endif
 
 #ifndef LUA_RTOS_BOARD
@@ -174,8 +179,10 @@
 	#endif
 #endif
 
-#if CONFIG_LUA_RTOS_LORA_BAND_EU868
-	#define CFG_eu868 1
+// https://github.com/mcci-catena/arduino-lorawan
+#if CONFIG_LUA_RTOS_LORA_BAND_EU868 || CONFIG_LUA_RTOS_LORA_BAND_AS923
+	#define CFG_as923 1
+	// #define CFG_eu868 1
 #else
 	#if CONFIG_LUA_RTOS_LORA_BAND_US915
 		#define CFG_us915 1
@@ -183,6 +190,88 @@
 		#define CFG_eu868 1
 	#endif
 #endif
+
+//#define LMIC_DEBUG_LEVEL	2
+// define this in lmic_project_config.h to disable all code related to joining
+//#define DISABLE_JOIN
+// define this in lmic_project_config.h to disable all code related to ping
+//#define DISABLE_PING
+// define this in lmic_project_config.h to disable all code related to beacon tracking.
+// Requires ping to be disabled too
+//#define DISABLE_BEACONS
+
+// define these in lmic_project_config.h to disable the corresponding MAC commands.
+// Class A
+//#define DISABLE_MCMD_DCAP_REQ // duty cycle cap
+//#define DISABLE_MCMD_DN2P_SET // 2nd DN window param
+//#define DISABLE_MCMD_SNCH_REQ // set new channel
+// Class B
+#define DISABLE_MCMD_PING_SET // set ping freq, automatically disabled by DISABLE_PING
+#define DISABLE_MCMD_BCNI_ANS // next beacon start, automatically disabled by DISABLE_BEACON
+
+// In LoRaWAN, a gateway applies I/Q inversion on TX, and nodes do the
+// same on RX. This ensures that gateways can talk to nodes and vice
+// versa, but gateways will not hear other gateways and nodes will not
+// hear other nodes. By defining this macro in lmic_project_config.h,
+// this inversion is disabled and this node can hear other nodes. If
+// two nodes both have this macro set, they can talk to each other
+// (but they can no longer hear gateways). This should probably only
+// be used when debugging and/or when talking to the radio directly
+// (e.g. like in the "raw" example).
+//#define DISABLE_INVERT_IQ_ON_RX
+
+#define LMIC_REGION_eu868	1
+#define LMIC_REGION_us915	2
+#define LMIC_REGION_cn783	3
+#define LMIC_REGION_eu433	4
+#define LMIC_REGION_au921	5
+#define LMIC_REGION_cn490	6
+#define LMIC_REGION_as923	7
+#define LMIC_REGION_kr921	8
+#define LMIC_REGION_in866	9
+
+// the selected region.
+#if defined(CFG_eu868)
+# define CFG_region     LMIC_REGION_eu868
+#elif defined(CFG_us915)
+# define CFG_region     LMIC_REGION_us915
+#elif defined(CFG_cn783)
+# define CFG_region     LMIC_REGION_cn783
+#elif defined(CFG_eu433)
+# define CFG_region     LMIC_REGION_eu433
+#elif defined(CFG_au921)
+# define CFG_region     LMIC_REGION_au921
+#elif defined(CFG_cn490)
+# define CFG_region     LMIC_REGION_cn490
+#elif defined(CFG_as923)
+# define CFG_region     LMIC_REGION_as923
+#elif defined(CFG_kr921)
+# define CFG_region     LMIC_REGION_kr921
+#elif defined(CFG_in866)
+# define CFG_region     LMIC_REGION_in866
+#else
+# define CFG_region     0
+#endif
+
+#define LMIC_DR_LEGACY		1
+#define CFG_LMIC_EU_like	1
+#define CFG_LMIC_US_like	0
+
+// Some regions have country-specific overrides. For generality, we specify
+// country codes using the LMIC_COUNTY_CODE_C() macro These values are chosen
+// from the 2-letter domain suffixes standardized by ISO-3166-1 alpha2 (see
+// https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2). They are therefore
+// 16-bit constants. By convention, we use UPPER-CASE letters, thus
+// LMIC_COUNTRY_CODE('J', 'P'), not ('j', 'p').
+#define LMIC_COUNTRY_CODE_C(c1, c2)     ((c1) * 256 + (c2))
+
+// this special code means "no country code defined"
+#define LMIC_COUNTRY_CODE_NONE  0
+
+// specific countries. Only the ones that are needed by the code are defined.
+#define LMIC_COUNTRY_CODE_JP    LMIC_COUNTRY_CODE_C('J', 'P')
+#define LMIC_COUNTRY_CODE	LMIC_COUNTRY_CODE_NONE
+
 
 #if CONFIG_FREERTOS_THREAD_LOCAL_STORAGE_POINTERS <= 1
 #error "Please, review the 'Number of thread local storage pointers' settings in kconfig. Must be >= 2."
